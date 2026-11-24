@@ -1,6 +1,6 @@
 # ScreenshotInPDFSkill
 
-Skill para Claude Code que ejecuta un proyecto de Android Studio en el emulador, toma capturas del código (Kotlin/Java y XML) y de las pruebas de ejecución, y genera un PDF de entrega.
+Skill para Claude Code que ejecuta un proyecto de Android Studio en el emulador, toma capturas del código (Java y XML) y de las pruebas de ejecución, y genera un PDF de entrega.
 
 ## Instalación
 
@@ -18,4 +18,4 @@ cp -r ScreenshotInPDFSkill/android-reporte-pdf ~/.claude/skills/
 
 ## Requisitos
 
-Android SDK (adb, emulator), Python 3 con Pillow y Pygments, fuentes DejaVu.
+Android SDK (adb, emulator), Python 3 con Pillow y Pygments, fuentes DejaVu o Liberation.

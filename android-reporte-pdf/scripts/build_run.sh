@@ -5,7 +5,12 @@ set -euo pipefail
 PROJ="$(realpath "$1")"
 SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
 ADB="$SDK/platform-tools/adb"
-export JAVA_HOME="${JAVA_HOME:-$HOME/android-studio/jbr}"
+if [ -z "${JAVA_HOME:-}" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
+  for j in /opt/android-studio/jbr "$HOME/android-studio/jbr" /usr/share/android-studio/jbr /usr/local/android-studio/jbr; do
+    [ -x "$j/bin/java" ] && { JAVA_HOME="$j"; break; }
+  done
+fi
+export JAVA_HOME
 
 "$ADB" start-server >/dev/null 2>&1 </dev/null || true   # que el daemon de adb no herede stdout (colgaría pipes)
 cd "$PROJ"

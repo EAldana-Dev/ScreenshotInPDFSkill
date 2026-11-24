@@ -1,12 +1,16 @@
 ---
 name: android-reporte-pdf
-description: Ejecuta un proyecto de Android Studio en el emulador, toma capturas del código (Kotlin/Java y XML) y de las pruebas de ejecución, y genera el PDF de entrega (p. ej. Valdez_Aldana_Fragments2.pdf). Usar cuando el usuario pida "ejecuta el programa X en el emulador", "toma captura de los códigos y de las pruebas", "genérame el pdf/reporte de la práctica", o un PDF llamado Valdez_Aldana_*.
+description: Ejecuta un proyecto de Android Studio en el emulador, toma capturas del código (Java y XML) y de las pruebas de ejecución, y genera el PDF de entrega (p. ej. Valdez_Aldana_Fragments2.pdf). Usar cuando el usuario pida "ejecuta el programa X en el emulador", "toma captura de los códigos y de las pruebas", "genérame el pdf/reporte de la práctica", o un PDF llamado Valdez_Aldana_*.
 ---
 
 # Reporte PDF de práctica Android
 
 Flujo completo en 4 pasos. Los scripts están en `~/.claude/skills/android-reporte-pdf/scripts/`.
 Trabaja las capturas en el scratchpad de la sesión (`$S/shots`), no en el proyecto.
+
+**Lenguaje: siempre Java.** Si hay que escribir o crear código y el usuario no dice el lenguaje, es Java,
+nunca Kotlin. Solo usa Kotlin si el usuario lo pide explícitamente. Para un proyecto nuevo, copia uno Java
+existente de `~/AndroidStudioProjects/` (sin `build/`, `.gradle/`, `.idea/`) y cambia paquete y nombre.
 
 ## 1. Compilar, arrancar emulador, instalar y abrir
 
@@ -27,15 +31,17 @@ maneje (campos vacíos, división entre 0, etc.). Normalmente 5–8 capturas.
 Maneja la app por resource-id con `emu.py` (encadena pasos con `+`):
 
 ```bash
-E=~/.claude/skills/android-reporte-pdf/scripts/emu.py
-python3 $E dump                                   # ver ids/textos de la pantalla actual
-python3 $E shot $S/shots/00_inicio.png
-python3 $E tap btnSuma + type edtNumero1 25 + type edtNumero2 17 + hidekb + tap btnCalcular + shot $S/shots/01_suma.png
+E() { python3 ~/.claude/skills/android-reporte-pdf/scripts/emu.py "$@"; }
+E dump                                   # ver ids/textos de la pantalla actual
+E shot $S/shots/00_inicio.png
+E tap btnSuma + type edtNumero1 25 + type edtNumero2 17 + hidekb + tap btnCalcular + shot $S/shots/01_suma.png
 ```
 
+- El shell es zsh: usa la función `E` (no `E="python3 ..."; $E`, zsh no parte la variable en palabras).
 - Haz `hidekb` antes de tocar botones que el teclado pueda tapar.
 - Los Toast duran ~2 s: `shot` justo después del `tap` para que salgan; `wait 2.5` antes del siguiente caso
   para que no se cuele el Toast anterior.
+- Captions cortos (≤ 30 caracteres): las capturas van de 3 en fila y los textos largos se enciman.
 - Escribe `$S/shots/captions.json` (el orden de la lista es el del PDF):
 
 ```json
@@ -51,23 +57,23 @@ correcto; si algo falla en la app, repórtalo en vez de ocultarlo.
 ```bash
 python3 ~/.claude/skills/android-reporte-pdf/scripts/make_pdf.py \
   --project ~/AndroidStudioProjects/<Proyecto> --shots $S/shots \
-  --out ~/Documentos/Valdez_Aldana_<Tema>.pdf \
+  --out ~/Documents/Valdez_Aldana_<Tema>.pdf \
   --author "Valdez Aldana" --subtitle "<descripción corta de la app>"
 ```
 
-- Nombre: el que diga el usuario; si no lo dice, `Valdez_Aldana_<Tema>.pdf`. Destino por defecto `~/Documentos`.
+- Nombre: el que diga el usuario; si no lo dice, `Valdez_Aldana_<Tema>.pdf`. Destino por defecto `~/Documents` (no existe `~/Documentos`).
   Si el archivo ya existe, pregunta antes de sobrescribir.
-- El script detecta solo los fuentes (.kt/.java), layouts y manifest, y el lenguaje para los títulos.
+- El script detecta solo los fuentes (.java/.kt), layouts y manifest, y el lenguaje para los títulos.
 - Revisa la vista previa que imprime (`$S/shots/_preview.png`) con Read antes de dar por terminado.
 
 ## 4. Informar
 
 Respuesta corta: ruta del PDF, tabla de pruebas con resultado, y avisar siempre de:
-- si el usuario dijo "Java" pero el proyecto es Kotlin (o al revés);
+- si el proyecto existente es Kotlin (lo correcto por defecto es Java);
 - que las "capturas" del código son imágenes generadas de los archivos reales, no pantallazos del IDE;
 - que la portada solo lleva el nombre (no hay materia/grupo/fecha salvo que los dé).
 
-## Trampas de esta máquina (8 GB RAM, GPU Intel, elementary OS)
+## Trampas de esta máquina (8 GB RAM, GPU Intel, Arch Linux)
 
 - **GPU**: el emulador en modo `auto` cae a render por software (arranque de 6 min). Siempre `-gpu host`
   (el AVD `Medium_Phone` ya tiene `hw.gpu.mode=host`).
@@ -75,5 +81,7 @@ Respuesta corta: ruta del PDF, tabla de pruebas con resultado, y avisar siempre 
   primero, se hace `./gradlew --stop`, y luego se instala con `adb install` — nunca `gradlew installDebug`
   con el emulador abierto. Si `adb devices` sale vacío a mitad, fue OOM: volver a correr `build_run.sh`.
 - **No usar `pkill -f <patrón>`** dentro de un comando Bash: el patrón coincide con el propio shell y lo mata.
-- Java: `JAVA_HOME=~/android-studio/jbr`. adb: `~/Android/Sdk/platform-tools/adb`.
+- Java: `JAVA_HOME=/opt/android-studio/jbr` (`build_run.sh` lo detecta solo). adb: `~/Android/Sdk/platform-tools/adb`.
 - No hay LibreOffice/Chrome/reportlab: el PDF se hace con Pillow + Pygments (ya instalados).
+- No hay fuentes DejaVu: `make_pdf.py` usa Liberation (`/usr/share/fonts/liberation/`) si DejaVu no está.
+- Para revisar páginas del PDF: `pdftoppm -r 60 -f N -l N -png <pdf> $S/p`.

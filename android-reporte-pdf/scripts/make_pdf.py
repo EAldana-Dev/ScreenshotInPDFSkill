@@ -5,7 +5,7 @@ Uso:
 <dir>/captions.json: [{"file":"01_suma.png","caption":"Suma: 25 + 17 = 42","group":"Pruebas de ejecución"}, ...]
 (el orden de la lista es el orden en el PDF; cada 'group' distinto abre una sección nueva).
 Solo necesita Pillow y Pygments."""
-import argparse, glob, io, json, os
+import argparse, glob, io, json, os, sys
 from PIL import Image, ImageDraw, ImageFont
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename
@@ -19,8 +19,21 @@ a = ap.parse_args()
 PROJ = os.path.abspath(os.path.expanduser(a.project)); MAIN = os.path.join(PROJ, 'app/src/main')
 title = a.title or os.path.basename(PROJ)
 W, H, M = 1654, 2339, 80   # A4 a 200 dpi
-F = '/usr/share/fonts/truetype/dejavu/'
-font = lambda sz, b=False: ImageFont.truetype(F + ('DejaVuSans-Bold.ttf' if b else 'DejaVuSans.ttf'), sz)
+FONTS = {
+    'sans': ['/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', '/usr/share/fonts/TTF/DejaVuSans.ttf',
+             '/usr/share/fonts/liberation/LiberationSans-Regular.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'],
+    'bold': ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf',
+             '/usr/share/fonts/liberation/LiberationSans-Bold.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'],
+    'mono': ['/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', '/usr/share/fonts/TTF/DejaVuSansMono.ttf',
+             '/usr/share/fonts/liberation/LiberationMono-Regular.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf'],
+}
+def ffile(kind):
+    for f in FONTS[kind]:
+        if os.path.exists(f): return f
+    sys.exit(f'No se encontró fuente {kind}; instala DejaVu o Liberation')
+SANS, BOLD, MONO = ffile('sans'), ffile('bold'), ffile('mono')
+MONO_NAME = 'DejaVu Sans Mono' if 'DejaVu' in MONO else 'Liberation Mono'
+font = lambda sz, b=False: ImageFont.truetype(BOLD if b else SANS, sz)
 pages = []; cur = None; y = 0
 
 def newpage():
@@ -36,13 +49,13 @@ def text(t, sz, b=False, color='#111', gap=20, center=False):
 def code_img(path):
     src = open(path, encoding='utf-8').read().rstrip('\n') + '\n'
     png = highlight(src, get_lexer_for_filename(path), ImageFormatter(
-        font_name='DejaVu Sans Mono', font_size=24, style='monokai', line_numbers=True,
+        font_name=MONO_NAME, font_size=24, style='monokai', line_numbers=True,
         line_number_bg='#272822', line_number_fg='#75715e', line_number_separator=False, image_pad=24, line_pad=6))
     im = Image.open(io.BytesIO(png)).convert('RGB')
     bar = 56; out = Image.new('RGB', (max(im.width, 700), im.height + bar), '#272822')
     d = ImageDraw.Draw(out); d.rectangle([0, 0, out.width, bar], fill='#1e1f1c')
     for i, c in enumerate(['#ff5f56', '#ffbd2e', '#27c93f']): d.ellipse([20 + i * 34, 18, 40 + i * 34, 38], fill=c)
-    d.text((140, 14), os.path.basename(path), font=ImageFont.truetype(F + 'DejaVuSansMono.ttf', 22), fill='#ccc')
+    d.text((140, 14), os.path.basename(path), font=ImageFont.truetype(MONO, 22), fill='#ccc')
     out.paste(im, (0, bar)); return out
 
 def place(im, label):
